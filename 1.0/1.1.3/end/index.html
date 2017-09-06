@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+
+<head></head>
+
+<body>
+    <svg id="viz"></svg>
+
+    <script src="../../../lib/d3.js"></script>
+    <script src="../../../lib/d3-queue.v3.min.js"></script>
+    <script src="../../../lib/lodash.js"></script>
+
+    <script type="text/javascript">
+        function pivot(data, startYear, endYear, name) {
+            //console.log(data);
+
+            results = [];
+            data.forEach(function (element) {
+                for (var i = startYear; i < endYear; i++) {
+                    var datum = {
+                        Year: i,
+                        CountryCode: element["Country Code"],
+                        CountryName: element["Country Name"]
+                    };
+                    datum[name] = element[i.toString()];
+                    results.push(datum);
+                }
+            });
+
+            //console.log(results);
+
+            return results;
+        }
+        function toDict2(data, part1, part2) {
+            var dict = {}
+
+            data.forEach(function(element) {
+                dict[element[part1] + "." + element[part2]] = element;
+            });
+
+            return dict;
+        }
+
+        function toDict1(data, key) {
+            var dict = {}
+
+            data.forEach(function(element) {
+                dict[element[key]] = element;
+            });
+
+            return dict;
+        }
+
+        function mergeRegion(left, right, column) {
+            for (var key in left){
+                var data = left[key];
+                var region = "";
+                var o = right[data.CountryCode];
+                if (o != null)
+                {
+                    region = o.Region;
+                }
+                data.Region = region;
+            }  
+        }
+
+        function merge(left, right, column) {
+            for (var key in left){
+                var data = left[key];
+                var rdata = "";
+                var o = right[key];
+                if (o != null)
+                {
+                    rdata = o[column];
+                }
+                data[column] = rdata;
+            }  
+        }
+
+        console.log("HI");
+        
+        d3.queue(4)
+            .defer(d3.csv, "../../../data/life_expectancy.csv")
+            .defer(d3.csv, "../../../data/fert.csv")
+            .defer(d3.csv, "../../../data/population.csv")
+            .defer(d3.csv, "../../../data/regions.csv")
+            .awaitAll(function (error, results) {
+                //console.log(results[0]);
+                var exp = pivot(results[0], 1960, 2016, "LifeExp");
+                var fer = pivot(results[1], 1960, 2016, "FertRate");
+                var pop = pivot(results[2], 1960, 2016, "Population");
+                var reg = results[3];
+
+                var expDict = toDict2(exp, "CountryCode", "Year");
+                var ferDict = toDict2(fer, "CountryCode", "Year");
+                var popDict = toDict2(pop, "CountryCode", "Year");
+                var regDict = toDict1(reg, "CountryCode");
+
+                //mergeRegion(expDict, regDict);
+                merge(expDict, ferDict, "FertRate");
+                merge(expDict, popDict, "Population");
+
+                var results = []
+                for (var key in expDict){
+                    var item = expDict[key];
+                    results.push({
+                        CountryCode: item.CountryCode,
+                        CountryName: item.CountryName,
+                        FertRate: +item.FertRate,
+                        LifeExp: +item.LifeExp,
+                        Population: +item.Population,
+                        Year: +item.Year
+                    });
+                }
+
+                console.log(results);
+            });
+    </script>
+</body>
+
+</html>
